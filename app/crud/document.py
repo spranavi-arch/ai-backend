@@ -1,17 +1,24 @@
 from sqlalchemy.orm import Session
 from app.models.document import Document
-from app.schemas.document import DocumentCreate
+from app.models.user import User
 
-def create_document(db: Session, doc: DocumentCreate):
-    document = Document(
-        title=doc.title,
-        content=doc.content,
-        owner_id=doc.owner_id
+def create_document(db: Session, data):
+    users = db.query(User).filter(User.id.in_(data.user_ids)).all()
+
+    doc = Document(
+        title=data.title,
+        content=data.content,
+        users=users
     )
-    db.add(document)
-    db.commit()
-    db.refresh(document)
-    return document
 
-def get_documents_by_user(db: Session, user_id: str):
-    return db.query(Document).filter(Document.owner_id == user_id).all()
+    db.add(doc)
+    db.commit()
+    db.refresh(doc)
+    return doc
+
+
+def get_documents_by_user(db: Session, user_id: int):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        return None
+    return user.documents

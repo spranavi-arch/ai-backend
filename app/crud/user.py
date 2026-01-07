@@ -3,6 +3,10 @@ from app.models.user import User
 from app.schemas.user import UserCreate
 
 def create_user(db: Session, user: UserCreate):
+    existing = db.query(User).filter(User.email == user.email).first()
+    if existing:
+        return existing
+
     db_user = User(name=user.name, email=user.email)
     db.add(db_user)
     db.commit()
