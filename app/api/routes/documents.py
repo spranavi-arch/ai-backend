@@ -1,22 +1,20 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-from app.core.database import SessionLocal
-from app.schemas.document import DocumentCreate, DocumentResponse
-from app.crud.document import create_document, get_documents_by_user
+from app.core.database import get_db
+from app.schemas.document import DocumentCreate
+from app.crud.document import create_document
 
 router = APIRouter()
 
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-@router.post("/documents", response_model=DocumentResponse, status_code=201)
-def create_document_endpoint(doc: DocumentCreate, db: Session = Depends(get_db)):
-    return create_document(db, doc)
-
-@router.get("/users/{user_id}/documents", response_model=list[DocumentResponse])
-def get_user_documents(user_id: str, db: Session = Depends(get_db)):
-    return get_documents_by_user(db, user_id)
+@router.post("/documents", status_code=201)
+def create_document_endpoint(
+    data: DocumentCreate,
+    db: Session = Depends(get_db)
+):
+    doc = create_document(db, data)
+    return {
+        "id": doc.id,
+        "title": doc.title,
+        "content": doc.content,
+        "user_ids": [u.id for u in doc.users]
+    }

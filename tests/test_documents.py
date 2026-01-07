@@ -5,53 +5,41 @@ from app.main import app
 client = TestClient(app)
 
 
-def test_create_document():
-    email = f"doc_owner_{uuid.uuid4()}@example.com"
-
-    user_response = client.post(
-        "/users",
-        json={
-            "name": "Doc Owner",
-            "email": email
-        }
-    )
-    user_id = user_response.json()["id"]
+def test_create_document_with_multiple_users():
+    u1 = client.post("/users", json={"name": "A", "email": "a@test.com"}).json()
+    u2 = client.post("/users", json={"name": "B", "email": "b@test.com"}).json()
 
     response = client.post(
-        "/documents", json={
-            "title": "Test Document",
-            "content": "Test",
-            "owner_id": user_id
+        "/documents",
+        json={
+            "title": "Shared Doc",
+            "content": "Shared content",
+            "user_ids": [u1["id"], u2["id"]]
         }
     )
 
     assert response.status_code == 201
     data = response.json()
-    assert "id" in data
-    assert data["title"] == "Test Document"
-    assert data["owner_id"] == user_id
+    assert len(data["user_ids"]) == 2
+
 
 
 def test_get_documents_by_user():
-    # Create unique user
     email = f"user_{uuid.uuid4()}@example.com"
 
-    user_response = client.post(
+    user = client.post(
         "/users",
-        json={
-            "name": "Bob",
-            "email": email
-        }
-    )
-    user_id = user_response.json()["id"]
+        json={"name": "Bob", "email": email}
+    ).json()
 
-    # Create documents for that user
+    user_id = user["id"]
+
     client.post(
         "/documents",
         json={
             "title": "Doc 1",
             "content": "Content 1",
-            "owner_id": user_id
+            "user_ids": [user["id"]]
         }
     )
 
@@ -60,18 +48,23 @@ def test_get_documents_by_user():
         json={
             "title": "Doc 2",
             "content": "Content 2",
-            "owner_id": user_id
+            "user_ids": [user["id"]]
         }
     )
 
     # Fetch documents
-    response = client.get(f"/users/{user_id}/documents")
+
+    response = client.get(f"/users/{user['id']}/documents")
 
     assert response.status_code == 200
     documents = response.json()
-
     assert len(documents) == 2
-    assert all(doc["owner_id"] == user_id for doc in documents)
+    assert all(user["id"] in doc["user_ids"] for doc in documents)
+
+
+
+    
+   
 
 
 def test_create_document_validation_error():

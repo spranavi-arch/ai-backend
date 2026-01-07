@@ -1,13 +1,17 @@
-from sqlalchemy import Column, String
+from sqlalchemy import Column, Integer, String
 from sqlalchemy.orm import relationship
 from app.core.database import Base
-import uuid
+from app.models.associations import document_users
 
 class User(Base):
     __tablename__ = "users"
 
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
-    email = Column(String, unique=True, nullable=False)
+    email = Column(String, unique=True, nullable=False, index=True)
 
-    documents = relationship("Document", back_populates="owner")
+    documents = relationship(
+        "Document",
+        secondary=document_users,
+        back_populates="users"
+    )
