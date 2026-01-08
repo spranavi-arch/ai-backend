@@ -21,34 +21,42 @@ def upload_document(
     if not filename.endswith((".png", ".jpg", ".jpeg", ".pdf")):
         raise HTTPException(status_code=400, detail="Unsupported file type")
 
-    # Save file temporarily
-    with tempfile.NamedTemporaryFile(delete=False) as tmp:
-        shutil.copyfileobj(file.file, tmp)
-        tmp_path = tmp.name
+    tmp_path = None
 
     try:
+        # Save file temporarily
+        with tempfile.NamedTemporaryFile(delete=False) as tmp:
+            shutil.copyfileobj(file.file, tmp)
+            tmp_path = tmp.name
+
+        # OCR extraction
         extracted_text = extract_text(tmp_path, filename)
+
+        if not extracted_text.strip():
+            raise HTTPException(status_code=422, detail="No text extracted")
+
+        document = Document(
+            title=file.filename,
+            content=extracted_text,
+            original_filename=file.filename
+        )
+
+        db.add(document)
+        db.commit()
+        db.refresh(document)
+
+        return {
+            "document_id": document.id,
+            "filename": document.original_filename,
+            "extracted_text": extracted_text
+        }
+
+    except HTTPException:
+        raise
+
     except Exception as e:
-        os.remove(tmp_path)
         raise HTTPException(status_code=500, detail=str(e))
 
-    os.remove(tmp_path)
-
-    if not extracted_text:
-        raise HTTPException(status_code=422, detail="No text extracted")
-
-    document = Document(
-        title=file.filename,
-        content=extracted_text,
-        original_filename=file.filename
-    )
-
-    db.add(document)
-    db.commit()
-    db.refresh(document)
-
-    return {
-        "document_id": document.id,
-        "filename": document.original_filename,
-        "extracted_text": extracted_text
-    }
+    finally:
+        if tmp_path and os.path.exists(tmp_path):
+            os.remove(tmp_path)
