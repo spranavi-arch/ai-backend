@@ -1,13 +1,44 @@
-from fastapi import APIRouter
-from app.schemas.search import SearchRequest
-from app.services.search import semantic_search
+from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
 
-router = APIRouter()
+from app.core.database import get_db
+from app.models.document import Document
+from app.schemas.search import SearchRequest, SearchResult
+from app.services.search import search_documents
 
-@router.post("/search")
-def search(payload: SearchRequest):
-    document_ids = semantic_search(
-        payload.query,
-        payload.top_k
+router = APIRouter(tags=["Vector Search"])
+
+
+@router.post("/search", response_model=list[SearchResult])
+def semantic_search(
+    request: SearchRequest,
+    db: Session = Depends(get_db)
+):
+    search_results = search_documents(request.query, request.k)
+
+    if not search_results:
+        return []
+
+    doc_ids = [r["document_id"] for r in search_results]
+
+    documents = (
+        db.query(Document)
+        .filter(Document.id.in_(doc_ids))
+        .all()
     )
-    return {"document_ids": document_ids}
+
+    doc_map = {doc.id: doc for doc in documents}
+
+    response = []
+    for r in search_results:
+        doc = doc_map.get(r["document_id"])
+        if doc:
+            response.append(
+                SearchResult(
+                    document_id=doc.id,
+                    title=doc.title,
+                    score=r["score"]
+                )
+            )
+
+    return response
