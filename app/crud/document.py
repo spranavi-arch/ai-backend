@@ -1,16 +1,12 @@
 from sqlalchemy.orm import Session
 from app.models.document import Document
-from app.models.user import User
 
 def create_document(db: Session, data):
-    users = db.query(User).filter(User.id.in_(data.user_ids)).all()
-
     doc = Document(
         title=data.title,
         content=data.content,
-        users=users
+        user_id=data.user_id
     )
-
     db.add(doc)
     db.commit()
     db.refresh(doc)
@@ -18,7 +14,4 @@ def create_document(db: Session, data):
 
 
 def get_documents_by_user(db: Session, user_id: int):
-    user = db.query(User).filter(User.id == user_id).first()
-    if not user:
-        return None
-    return user.documents
+    return db.query(Document).filter(Document.user_id == user_id).all()

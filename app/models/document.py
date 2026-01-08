@@ -1,7 +1,6 @@
-from sqlalchemy import Column, Integer, String, Text
+from sqlalchemy import Column, Integer, String, Text, ForeignKey
 from sqlalchemy.orm import relationship
 from app.core.database import Base
-from app.models.associations import document_users
 
 class Document(Base):
     __tablename__ = "documents"
@@ -10,8 +9,8 @@ class Document(Base):
     title = Column(String, nullable=False)
     content = Column(Text, nullable=False)
 
-    users = relationship(
-        "User",
-        secondary=document_users,
-        back_populates="documents"
-    )
+    original_filename = Column(String, nullable=False)
+
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+
+    user = relationship("User", back_populates="documents")

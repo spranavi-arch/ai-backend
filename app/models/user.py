@@ -1,7 +1,6 @@
 from sqlalchemy import Column, Integer, String
 from sqlalchemy.orm import relationship
 from app.core.database import Base
-from app.models.associations import document_users
 
 class User(Base):
     __tablename__ = "users"
@@ -12,6 +11,6 @@ class User(Base):
 
     documents = relationship(
         "Document",
-        secondary=document_users,
-        back_populates="users"
+        back_populates="user",
+        cascade="all, delete"
     )
