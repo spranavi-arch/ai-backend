@@ -27,3 +27,9 @@ def get_documents_by_user(db: Session, user_id: int):
 def get_document_text(db, document_id: int) -> str:
     doc = db.query(Document).filter(Document.id == document_id).first()
     return doc.content if doc else ""
+
+def get_all_documents(db: Session):
+    return (
+        db.query(Document)
+        .all()
+    )

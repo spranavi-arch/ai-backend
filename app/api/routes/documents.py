@@ -8,6 +8,7 @@ from app.services.search import index_document_text
 from app.crud.document import create_document
 from app.models.document import Document
 
+
 router = APIRouter()
 
 @router.post(
