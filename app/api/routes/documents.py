@@ -27,18 +27,17 @@ def create_document_endpoint(
     "/documents/index",
     operation_id="index_document"
 )
-def index_document(
-    payload: IndexDocumentRequest,
-    db: Session = Depends(get_db)
-):
+@router.post("/documents/index")
+def index_document(payload: IndexDocumentRequest, db: Session = Depends(get_db)):
     document = db.query(Document).get(payload.document_id)
 
     if not document:
         raise HTTPException(status_code=404, detail="Document not found")
 
-    try:
-        index_document_text(document.id, document.content)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    index_document_text(
+        db=db,
+        document_id=document.id,
+        text=document.content
+    )
 
-    return {"message": "Document indexed successfully"}
+    return {"indexed":True,"message": "Document indexed with chunking"}

@@ -1,44 +1,26 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-
+from app.services.search_utils import hydrate_chunks
 from app.core.database import get_db
 from app.models.document import Document
 from app.schemas.search import SearchRequest, SearchResult
-from app.services.search import search_documents
+from app.services.search import search_chunks
 
 router = APIRouter(tags=["Vector Search"])
 
 
-@router.post("/search", response_model=list[SearchResult])
-def semantic_search(
-    request: SearchRequest,
-    db: Session = Depends(get_db)
-):
-    search_results = search_documents(request.query, request.k)
+#@router.post("/search", response_model=list[SearchResult])
 
-    if not search_results:
-        return []
+@router.get("/search")
+def semantic_search(query: str, k: int = 5, db: Session = Depends(get_db)):
+    # 1. FAISS returns chunk_ids
+    raw_results = search_chunks(query, k)
 
-    doc_ids = [r["document_id"] for r in search_results]
+    # 2. Hydrate chunks from DB
+    chunks = hydrate_chunks(db, raw_results)
 
-    documents = (
-        db.query(Document)
-        .filter(Document.id.in_(doc_ids))
-        .all()
-    )
+    return {
+        "query": query,
+        "results": chunks
+    }
 
-    doc_map = {doc.id: doc for doc in documents}
-
-    response = []
-    for r in search_results:
-        doc = doc_map.get(r["document_id"])
-        if doc:
-            response.append(
-                SearchResult(
-                    document_id=doc.id,
-                    title=doc.title,
-                    score=r["score"]
-                )
-            )
-
-    return response

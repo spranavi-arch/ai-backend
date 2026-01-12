@@ -14,3 +14,8 @@ class SearchResult(BaseModel):
     document_id: int
     title: str
     score: float
+
+
+
+
+
