@@ -1,28 +1,39 @@
-FROM python:3.11-slim-bookworm
+FROM python:3.11-slim-bullseye
 
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
 
-# Install system dependencies safely
-RUN apt-get update && \
+# -------------------------
+# System dependencies
+# -------------------------
+RUN echo "deb http://deb.debian.org/debian bookworm-backports main" >> /etc/apt/sources.list && \
+    apt-get update && \
     apt-get install -y --no-install-recommends \
         tesseract-ocr \
         tesseract-ocr-eng \
         poppler-utils \
-        libglib2.0-0 \
         libgl1 \
-        libxxf86vm1 \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+        gcc \
+        curl && \
+    rm -rf /var/lib/apt/lists/*
 
+
+# -------------------------
+# Working directory
+# -------------------------
 WORKDIR /app
 
+# -------------------------
+# Python dependencies
+# -------------------------
 COPY requirements.txt .
+RUN pip install --upgrade pip \
+    && pip install --no-cache-dir -r requirements.txt
 
-RUN pip install --no-cache-dir -r requirements.txt
-
+# -------------------------
+# App code
+# -------------------------
 COPY . .
 
-EXPOSE 8000
-
+# -------------------------
+# Run server
+# -------------------------
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

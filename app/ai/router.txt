@@ -1,0 +1,7 @@
+def route_by_intent(state):
+    intent = state["intent"]
+
+    if intent == "summarize":
+        return "summarize"
+
+    return "retrieve"
