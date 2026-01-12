@@ -1,0 +1,38 @@
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environments
+venv/
+.env/
+.venv/
+
+# Streamlit cache
+.streamlit/
+
+# OS / Editor files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Git
+.git/
+.gitignore
+
+# Logs
+*.log
+
+# Test / docs
+tests/
+docs/
+
+# Large / unnecessary files
+*.zip
+*.tar
+*.gz
+
+# Node / frontend (if any)
+node_modules/

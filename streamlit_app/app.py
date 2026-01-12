@@ -6,10 +6,12 @@ import requests
 # ======================================================
 BACKEND_URL = "http://localhost:8000"
 
+
 UPLOAD_URL = f"{BACKEND_URL}/documents/upload"
 INDEX_URL = f"{BACKEND_URL}/documents/index"
 ASK_URL = f"{BACKEND_URL}/ai/ask"
 DOCUMENTS_URL = f"{BACKEND_URL}/documents/all"
+DOCUMENT_TEXT_URL = f"{BACKEND_URL}/documents/all"  # /documents/{id}
 
 # ======================================================
 # Page Config
@@ -24,7 +26,7 @@ st.title("📄 AI Document Assistant")
 st.caption("OCR → Chunking → Vector Search → LangGraph Agent")
 
 # ======================================================
-# Sidebar – Upload Document
+# Sidebar – Actions Only
 # ======================================================
 st.sidebar.header("📤 Upload Document")
 
@@ -33,9 +35,7 @@ uploaded_file = st.sidebar.file_uploader(
     type=["pdf", "png", "jpg", "jpeg"]
 )
 
-upload_btn = st.sidebar.button("Upload")
-
-if upload_btn:
+if st.sidebar.button("Upload"):
     if uploaded_file is None:
         st.sidebar.warning("Please upload a file.")
     else:
@@ -47,32 +47,21 @@ if upload_btn:
                     uploaded_file.type
                 )
             }
-
             try:
-                res = requests.post(
-                    UPLOAD_URL,
-                    files=files,
-                    timeout=120
-                )
-
+                res = requests.post(UPLOAD_URL, files=files, timeout=120)
                 if res.status_code != 201:
                     st.sidebar.error(res.text)
                 else:
                     data = res.json()
-                    doc_id = data.get("document_id")
-
-                    st.sidebar.success(f"✅ Document uploaded (ID: {doc_id})")
-
-                    with st.sidebar.expander("📄 Extracted Text"):
-                        st.write(data.get("extracted_text", ""))
-
+                    st.sidebar.success(
+                        f"✅ Uploaded (Document ID: {data['document_id']})"
+                    )
             except requests.exceptions.RequestException as e:
                 st.sidebar.error(str(e))
 
-# ======================================================
-# Sidebar – Index Existing Document
-# ======================================================
-st.sidebar.header("📌 Index Existing Document")
+st.sidebar.divider()
+
+st.sidebar.header("📌 Index Document")
 
 index_doc_id = st.sidebar.number_input(
     "Document ID",
@@ -80,9 +69,7 @@ index_doc_id = st.sidebar.number_input(
     step=1
 )
 
-index_btn = st.sidebar.button("Index Document")
-
-if index_btn:
+if st.sidebar.button("Index"):
     with st.spinner("Indexing document..."):
         try:
             res = requests.post(
@@ -90,119 +77,129 @@ if index_btn:
                 json={"document_id": index_doc_id},
                 timeout=60
             )
-
             if res.status_code != 200:
                 st.sidebar.error(res.text)
             else:
                 st.sidebar.success("✅ Document indexed successfully!")
-
         except requests.exceptions.RequestException as e:
             st.sidebar.error(str(e))
 
 # ======================================================
-# Sidebar – View Documents (Single Click Toggle)
+# Tabs
 # ======================================================
-st.sidebar.header("📂 Uploaded Documents")
+ask_tab, docs_tab = st.tabs(["💬 Ask AI", "📂 Uploaded Documents"])
 
-show_docs = st.sidebar.checkbox("📄 Show Documents")
+# ======================================================
+# TAB 1 — Ask AI
+# ======================================================
+with ask_tab:
+    st.subheader("💬 Ask Questions")
 
-if show_docs:
-    with st.spinner("Loading documents..."):
-        try:
-            res = requests.get(DOCUMENTS_URL, timeout=30)
+    col1, col2 = st.columns([3, 1])
 
-            if res.status_code != 200:
-                st.sidebar.error(res.text)
+    with col1:
+        query = st.text_area(
+            "Enter your query",
+            placeholder="e.g. What is an invoice?"
+        )
+
+    with col2:
+        k = st.number_input(
+            "Top-K Chunks",
+            min_value=1,
+            max_value=10,
+            value=5
+        )
+
+    if st.button("Ask AI"):
+        if not query.strip():
+            st.warning("Please enter a query.")
+        else:
+            with st.spinner("Thinking..."):
+                try:
+                    res = requests.post(
+                        ASK_URL,
+                        json={"query": query, "k": k},
+                        timeout=60
+                    )
+
+                    if res.status_code != 200:
+                        st.error(res.text)
+                    else:
+                        data = res.json()
+
+                        st.subheader("🧠 Answer")
+                        st.write(data.get("answer", ""))
+
+                        c1, c2, c3 = st.columns(3)
+                        c1.metric("Intent", data.get("intent"))
+                        c2.metric("Used Web", str(data.get("use_web")))
+                        c3.metric(
+                            "Chunks Used",
+                            len(data.get("documents", []))
+                        )
+
+                        if data.get("documents"):
+                            st.subheader("📚 Retrieved Chunks")
+                            for chunk in data["documents"]:
+                                with st.expander(
+                                    f"Doc {chunk['document_id']} | "
+                                    f"Chunk {chunk['chunk_id']} | "
+                                    f"Score {chunk['score']:.2f}"
+                                ):
+                                    st.write(chunk["content"])
+
+                except requests.exceptions.RequestException as e:
+                    st.error(str(e))
+
+# ======================================================
+# TAB 2 — Uploaded Documents
+# ======================================================
+with docs_tab:
+    st.subheader("📂 Uploaded Documents")
+
+    if st.button("🔄 Refresh Documents"):
+        st.rerun()
+
+    try:
+        res = requests.get(DOCUMENTS_URL, timeout=30)
+
+        if res.status_code != 200:
+            st.error(res.text)
+        else:
+            documents = res.json()
+
+            if not documents:
+                st.info("No documents uploaded yet.")
             else:
-                docs = res.json()
-
-                if not docs:
-                    st.sidebar.info("No documents uploaded yet.")
-                else:
-                    for doc in docs:
-                        st.sidebar.markdown(
+                for doc in documents:
+                    with st.expander(
+                        f"📄 Document ID {doc['id']} — {doc.get('title', 'Untitled')}"
+                    ):
+                        st.markdown(
                             f"""
-**📄 Document ID:** `{doc['id']}`  
-**Title:** {doc.get('title', 'N/A')}
----
+**Filename:** {doc.get('original_filename', 'N/A')}  
 """
                         )
 
-        except requests.exceptions.RequestException as e:
-            st.sidebar.error(str(e))
+                        try:
+                            text_res = requests.get(
+                                f"{DOCUMENT_TEXT_URL}/{doc['id']}",
+                                timeout=30
+                            )
 
+                            if text_res.status_code == 200:
+                                st.text_area(
+                                    "📄 Extracted Text",
+                                    text_res.json().get("content", ""),
+                                    height=300,
+                                    key=f"doc_text_{doc['id']}"
+                                )
+                            else:
+                                st.warning("Unable to fetch document text.")
 
+                        except requests.exceptions.RequestException:
+                            st.warning("Backend not reachable.")
 
-# ======================================================
-# Main – Ask AI
-# ======================================================
-st.subheader("💬 Ask Questions")
-
-col1, col2 = st.columns([3, 1])
-
-with col1:
-    query = st.text_area(
-        "Enter your query",
-        placeholder="e.g. What is an invoice?"
-    )
-
-with col2:
-    k = st.number_input(
-        "Top-K Chunks",
-        min_value=1,
-        max_value=10,
-        value=5
-    )
-
-ask_btn = st.button("Ask AI")
-
-if ask_btn:
-    if not query.strip():
-        st.warning("Please enter a query.")
-    else:
-        with st.spinner("Thinking..."):
-            try:
-                res = requests.post(
-                    ASK_URL,
-                    json={
-                        "query": query,
-                        "k": k
-                    },
-                    timeout=60
-                )
-
-                if res.status_code != 200:
-                    st.error(res.text)
-                else:
-                    data = res.json()
-
-                    # -----------------------------
-                    # Answer
-                    # -----------------------------
-                    st.subheader("🧠 Answer")
-                    st.write(data.get("answer", ""))
-
-                    # -----------------------------
-                    # Metadata
-                    # -----------------------------
-                    c1, c2, c3 = st.columns(3)
-                    c1.metric("Intent", data.get("intent"))
-                    c2.metric("Used Web", str(data.get("use_web")))
-                    c3.metric("Chunks Used", len(data.get("documents", [])))
-
-                    # -----------------------------
-                    # Retrieved Chunks
-                    # -----------------------------
-                    if data.get("documents"):
-                        st.subheader("📚 Retrieved Chunks")
-
-                        for doc in data["documents"]:
-                            with st.expander(
-                                f"Doc {doc['document_id']} | "
-                                f"Chunk {doc['chunk_id']} | "
-                                f"Score {doc['score']:.2f}"
-                            ):
-                                st.write(doc["content"])
-
-            except requests.exceptions.RequestException as e:
-                st.error(str(e))
+    except requests.exceptions.RequestException as e:
+        st.error(str(e))
