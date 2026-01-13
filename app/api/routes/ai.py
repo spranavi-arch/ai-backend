@@ -4,7 +4,6 @@ from app.schemas.ask import AskRequest
 from app.core.database import get_db
 from app.services.search import search_chunks
 from app.services.search_utils import hydrate_chunks
-from app.services.embedding import embed_text
 from app.services.llm import ask_llm
 
 router = APIRouter()

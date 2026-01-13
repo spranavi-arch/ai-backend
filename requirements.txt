@@ -10,9 +10,6 @@ pymysql==1.1.0
 pydantic>=2.7.4,<3
 email-validator==2.1.1
 
-# Testing
-pytest==8.0.2
-httpx==0.27.0
 
 # File & OCR
 pillow==12.1.0
@@ -32,3 +29,5 @@ openai==2.14.0
 langchain==1.2.3
 langchain-core>=0.1.52,<2
 langgraph==1.0.5
+
+
