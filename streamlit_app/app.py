@@ -132,7 +132,7 @@ with ask_tab:
                         st.write(data.get("answer", ""))
 
                         c1, c2, c3 = st.columns(3)
-                        c1.metric("Intent", data.get("intent"))
+                        #c1.metric("Intent", data.get("intent"))
                         c2.metric("Used Web", str(data.get("use_web")))
                         c3.metric(
                             "Chunks Used",

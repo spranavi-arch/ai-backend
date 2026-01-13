@@ -1,7 +1,10 @@
-__pycache__
-*.pyc
+venv/
+__pycache__/
 .env
-.venv
 .git
 .gitignore
-tests
+.streamlit/
+node_modules/
+*.log
+*.db
+.faiss

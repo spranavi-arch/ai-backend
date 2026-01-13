@@ -28,7 +28,6 @@ def create_document_endpoint(
     "/documents/index",
     operation_id="index_document"
 )
-@router.post("/documents/index")
 def index_document(payload: IndexDocumentRequest, db: Session = Depends(get_db)):
     document = db.query(Document).get(payload.document_id)
 
